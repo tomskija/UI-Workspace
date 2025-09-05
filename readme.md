@@ -76,13 +76,17 @@ cp .env.example .env.local
 
 Edit `.env.local` with your backend URLs:
 ```env
-# Backend configurations
+# Workspace configuration
+NEXT_PUBLIC_WORKSPACE_NAME=UI-Workspace
+NEXT_PUBLIC_ENABLE_MULTI_BACKEND=true
+
+# Weather backend (primary example)
 NEXT_PUBLIC_WEATHER_API_URL=http://localhost:8000
 NEXT_PUBLIC_ENABLE_WEATHER_MODULE=true
 
 # Future backends
 # NEXT_PUBLIC_FINANCE_API_URL=http://localhost:8001
-# NEXT_PUBLIC_ML_API_URL=http://localhost:8002
+# NEXT_PUBLIC_ENABLE_FINANCE_MODULE=false
 ```
 
 4. **Start development server**
@@ -92,6 +96,42 @@ npm run dev
 
 5. **Access the workspace**
 Navigate to [http://localhost:3000](http://localhost:3000)
+
+## 🔧 Configuration
+
+### Backend Configuration
+
+The workspace uses a centralized configuration system to manage multiple backends:
+
+```typescript
+// Example configuration from src/lib/config/workspace.ts
+const config = {
+  backends: {
+    weather: {
+      name: "Weather-Forecasting",
+      url: "http://localhost:8000",
+      enabled: true,
+      features: ["forecasting", "alerts", "historical"]
+    }
+    // Add more backends here
+  }
+};
+```
+
+### Module Management
+
+Enable/disable modules through environment variables:
+
+```env
+# Module toggles
+NEXT_PUBLIC_ENABLE_WEATHER_MODULE=true
+NEXT_PUBLIC_ENABLE_FINANCE_MODULE=false
+NEXT_PUBLIC_ENABLE_ML_MODULE=false
+
+# Feature flags
+NEXT_PUBLIC_ENABLE_CROSS_MODULE_ANALYTICS=true
+NEXT_PUBLIC_ENABLE_SHARED_CALCULATIONS=true
+```
 
 ## 🔧 Configuration
 
@@ -244,6 +284,8 @@ npm test -- --testPathPattern=weather
 
 ## 🌐 Deployment
 
+## 🌐 Deployment
+
 ### Production Deployment
 
 1. **Build the application**
@@ -257,10 +299,26 @@ npm install -g vercel
 vercel --prod
 ```
 
-3. **Set environment variables** in your deployment platform
+3. **Set environment variables** in Vercel dashboard
 ```env
-NEXT_PUBLIC_WEATHER_API_URL=https://your-weather-api.com
-NEXT_PUBLIC_FINANCE_API_URL=https://your-finance-api.com
+NEXT_PUBLIC_WORKSPACE_NAME=UI-Workspace
+NEXT_PUBLIC_WEATHER_API_URL=https://your-weather-backend.com
+NEXT_PUBLIC_ENABLE_WEATHER_MODULE=true
+NEXT_PUBLIC_APP_ENV=production
+```
+
+### Docker Deployment
+
+```bash
+# Build and push to GitHub Container Registry
+docker build -t ghcr.io/tomskija/ui-workspace:latest .
+docker push ghcr.io/tomskija/ui-workspace:latest
+
+# Deploy to cloud providers:
+# - AWS ECS/Fargate
+# - Google Cloud Run  
+# - Azure Container Instances
+# - DigitalOcean App Platform
 ```
 
 ### Multi-Environment Setup
@@ -562,10 +620,27 @@ docker push ghcr.io/your-username/weather-ui:latest
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_API_URL` | Backend API URL | `http://localhost:8000` |
-| `NEXT_PUBLIC_APP_ENV` | Environment | `development` |
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `NEXT_PUBLIC_WORKSPACE_NAME` | Workspace display name | `UI-Workspace` | No |
+| `NEXT_PUBLIC_WEATHER_API_URL` | Weather backend URL | `http://localhost:8000` | Yes* |
+| `NEXT_PUBLIC_ENABLE_WEATHER_MODULE` | Enable weather module | `true` | No |
+| `NEXT_PUBLIC_ENABLE_MULTI_BACKEND` | Enable multi-backend mode | `true` | No |
+| `NEXT_PUBLIC_APP_ENV` | Environment | `development` | No |
+
+*Required if weather module is enabled
+
+### Future Backend Variables
+```env
+# Add these when you create new backend services
+NEXT_PUBLIC_FINANCE_API_URL=http://localhost:8001
+NEXT_PUBLIC_ENABLE_FINANCE_MODULE=true
+
+NEXT_PUBLIC_ML_API_URL=http://localhost:8002  
+NEXT_PUBLIC_ENABLE_ML_MODULE=true
+```
 
 ### API Integration
 
