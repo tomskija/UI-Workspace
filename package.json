@@ -1,0 +1,67 @@
+{
+  "name": "weather-forecasting-ui-workspace",
+  "version": "1.0.0",
+  "description": "Modern React frontend for Weather Forecasting Calculator - UI Workspace",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tomskija/UI-Workspace.git"
+  },
+  "homepage": "https://weather-forecasting-ui.vercel.app",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write .",
+    "docker:build": "docker build -t weather-ui-workspace .",
+    "docker:run": "docker run -p 3000:3000 weather-ui-workspace",
+    "docker:dev": "docker-compose --profile development up weather-ui-dev",
+    "docker:prod": "docker-compose --profile production up weather-ui-prod"
+  },
+  "dependencies": {
+    "next": "14.0.3",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "typescript": "5.3.2",
+    "@types/node": "20.8.10",
+    "@types/react": "18.2.37",
+    "@types/react-dom": "18.2.15",
+    "tailwindcss": "3.3.5",
+    "autoprefixer": "10.4.16",
+    "postcss": "8.4.32",
+    "axios": "1.6.2",
+    "@tanstack/react-query": "5.8.4",
+    "recharts": "2.8.0",
+    "lucide-react": "0.292.0",
+    "date-fns": "2.30.0",
+    "react-hook-form": "7.48.2",
+    "zod": "3.22.4",
+    "@hookform/resolvers": "3.3.2",
+    "clsx": "2.0.0",
+    "class-variance-authority": "0.7.0",
+    "framer-motion": "10.16.16"
+  },
+  "devDependencies": {
+    "eslint": "8.53.0",
+    "eslint-config-next": "14.0.3",
+    "@typescript-eslint/eslint-plugin": "6.10.0",
+    "@typescript-eslint/parser": "6.10.0",
+    "prettier": "3.0.3",
+    "prettier-plugin-tailwindcss": "0.5.7",
+    "jest": "29.7.0",
+    "@testing-library/react": "14.1.2",
+    "@testing-library/jest-dom": "6.1.5",
+    "jest-environment-jsdom": "29.7.0",
+    "@types/jest": "29.5.8"
+  },
+  "engines": {
+    "node": ">=18.17.0",
+    "npm": ">=9.0.0"
+  }
+}
