@@ -367,18 +367,55 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Ready to scale your Python backends with a professional UI? This workspace grows with your projects! 🌟**# Weather Forecasting UI Workspace
+**Ready to scale your Python backends with a professional UI? This workspace grows with your projects! 🌟**# UI Workspace
 
-A modern, responsive React/Next.js frontend for the [Weather Forecasting Calculator](https://github.com/tomskija/Weather-Forcasting) backend. This UI provides an intuitive dashboard for real-time weather data, forecasts, and analytics.
+A modern, modular React/Next.js frontend workspace designed to connect with multiple Python backend services. Currently supports [Weather Forecasting Calculator](https://github.com/tomskija/Weather-Forcasting) with architecture ready for additional backend integrations.
 
 ## 🚀 Features
 
-- **Real-time Weather Data** - Live weather conditions and forecasts from the Python backend
-- **Interactive Dashboard** - Beautiful, responsive weather dashboard with charts and visualizations
-- **Location Search** - Search and switch between global locations
-- **7-Day Forecast** - Extended weather predictions with interactive charts
-- **Weather Alerts** - Important weather warnings and notifications from the backend
--# Weather Forecasting UI
+- **Multi-Backend Architecture** - Seamlessly connect to multiple Python backend services
+- **Modular Design** - Each backend service gets its own UI module
+- **Real-time Data** - Live data feeds from connected backend services
+- **Interactive Dashboards** - Beautiful, responsive dashboards for each module
+- **Centralized Management** - Single workspace to manage all your backend workflows
+- **Client-side Calculations** - Complementary calculations in `workSpaceCalcs/` directory
+- **Health Monitoring** - Real-time health checks for all connected backends
+- **Extensible Framework** - Easy to add new backend services and modules
+
+## 🛠️ Current Modules
+
+### Weather Module ✅ **Active**
+- **Backend**: [Weather-Forcasting Calculator](https://github.com/tomskija/Weather-Forcasting)
+- **Features**: Real-time weather data, 7-day forecasts, weather alerts, climate analysis
+- **Calculations**: Heat index, wind chill, dew point, comfort analysis
+
+### Future Modules 🔮 **Planned**
+- **Finance Module**: Financial analysis and portfolio management
+- **ML Module**: Machine learning model training and inference
+- **Analytics Module**: Advanced data analytics and reporting
+
+## 🏗️ Architecture
+
+```
+UI-Workspace/
+├── src/
+│   ├── workSpaceCalcs/          # Client-side calculations
+│   │   ├── weather/            # Weather-specific calculations
+│   │   ├── shared/            # Shared calculation utilities
+│   │   └── index.ts           # Calculation manager
+│   ├── components/
+│   │   ├── shared/            # Reusable UI components
+│   │   ├── weather/          # Weather module components
+│   │   └── WorkspaceDashboard.tsx  # Main dashboard
+│   ├── lib/
+│   │   ├── api/              # API clients for backends
+│   │   │   ├── manager.ts    # Generic API manager
+│   │   │   └── weather.ts    # Weather API client
+│   │   └── config/           # Workspace configuration
+│   └── pages/
+│       ├── weather/          # Weather module pages
+│       └── index.tsx         # Main workspace entry
+```# Weather Forecasting UI
 
 A modern, responsive React/Next.js frontend for the Weather Forecasting Calculator backend.
 
