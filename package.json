@@ -1,7 +1,7 @@
 {
-  "name": "weather-forecasting-ui-workspace",
+  "name": "ui-workspace",
   "version": "1.0.0",
-  "description": "Modern React frontend for Weather Forecasting Calculator - UI Workspace",
+  "description": "Generic UI workspace for multiple Python backend services - Modular, scalable, and extensible",
   "private": true,
   "repository": {
     "type": "git",
@@ -19,10 +19,12 @@
     "test:coverage": "jest --coverage",
     "type-check": "tsc --noEmit",
     "format": "prettier --write .",
-    "docker:build": "docker build -t weather-ui-workspace .",
-    "docker:run": "docker run -p 3000:3000 weather-ui-workspace",
-    "docker:dev": "docker-compose --profile development up weather-ui-dev",
-    "docker:prod": "docker-compose --profile production up weather-ui-prod"
+    "docker:build": "docker build -t ui-workspace .",
+    "docker:run": "docker run -p 3000:3000 ui-workspace",
+    "docker:dev": "docker-compose --profile development up workspace-ui-dev",
+    "docker:prod": "docker-compose --profile production up workspace-ui-prod",
+    "workspace:health": "node scripts/check-backends.js",
+    "workspace:docs": "next build && next export"
   },
   "dependencies": {
     "next": "14.0.3",
@@ -46,7 +48,11 @@
     "@hookform/resolvers": "3.3.2",
     "clsx": "2.0.0",
     "class-variance-authority": "0.7.0",
-    "framer-motion": "10.16.16"
+    "framer-motion": "10.16.16",
+    "react-router-dom": "6.20.1",
+    "zustand": "4.4.7",
+    "react-select": "5.8.0",
+    "react-tabs": "6.0.2"
   },
   "devDependencies": {
     "eslint": "8.53.0",
@@ -66,5 +72,14 @@
   "engines": {
     "node": ">=18.17.0",
     "npm": ">=9.0.0"
-  }
+  },
+  "keywords": [
+    "ui-workspace",
+    "multi-backend",
+    "python-apis",
+    "react",
+    "nextjs",
+    "typescript",
+    "modular-ui"
+  ]
 }

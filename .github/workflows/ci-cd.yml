@@ -1,18 +1,28 @@
-name: CI/CD Pipeline - Weather UI Workspace
+name: CI/CD Pipeline - UI Workspace
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'Deployment target'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Test and Lint
-  test:
+  # Lint and type checking
+  lint-and-type-check:
     runs-on: ubuntu-latest
     
     steps:
@@ -33,11 +43,30 @@ jobs:
     
     - name: Run linting
       run: npm run lint
+
+  # Testing
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
     
     - name: Run tests
       run: npm test -- --coverage --watchAll=false
       env:
-        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_WORKSPACE_NAME: UI-Workspace-Test
+        NEXT_PUBLIC_WEATHER_API_URL: http://localhost:8000
+        NEXT_PUBLIC_ENABLE_WEATHER_MODULE: true
         NEXT_PUBLIC_APP_ENV: test
     
     - name: Upload coverage reports
@@ -45,11 +74,35 @@ jobs:
       with:
         file: ./coverage/lcov.info
 
+  # Backend health checks (optional, requires backends to be running)
+  backend-health-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Check backend health
+      run: npm run workspace:health
+      env:
+        NEXT_PUBLIC_WEATHER_API_URL: ${{ secrets.NEXT_PUBLIC_WEATHER_API_URL_STAGING }}
+        NEXT_PUBLIC_ENABLE_WEATHER_MODULE: true
+
   # Build and push Docker images
   build-and-push:
-    needs: test
+    needs: [lint-and-type-check, test]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     
     permissions:
       contents: read
@@ -76,6 +129,7 @@ jobs:
           type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=staging,enable={{is_default_branch}}
     
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
@@ -85,14 +139,21 @@ jobs:
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         build-args: |
-          NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL || 'https://weather-api.tomskija.dev' }}
+          NEXT_PUBLIC_WORKSPACE_NAME=UI-Workspace
+          NEXT_PUBLIC_WEATHER_API_URL=${{ secrets.NEXT_PUBLIC_WEATHER_API_URL || 'https://weather-api.tomskija.dev' }}
+          NEXT_PUBLIC_FINANCE_API_URL=${{ secrets.NEXT_PUBLIC_FINANCE_API_URL || 'https://finance-api.tomskija.dev' }}
           NEXT_PUBLIC_APP_ENV=production
+          NEXT_PUBLIC_ENABLE_MULTI_BACKEND=true
 
-  # Deploy to Vercel
-  deploy-vercel:
-    needs: test
+  # Deploy to staging
+  deploy-staging:
+    needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_target == 'staging')
+    
+    environment:
+      name: staging
+      url: https://staging-ui-workspace.tomskija.dev
     
     steps:
     - name: Checkout code
@@ -107,23 +168,26 @@ jobs:
     - name: Install Vercel CLI
       run: npm install --global vercel@latest
       
-    - name: Pull Vercel Environment Information
-      run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-      
-    - name: Build Project Artifacts
-      run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+    - name: Deploy to Vercel Staging
+      run: |
+        vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
       env:
-        NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'https://weather-api.tomskija.dev' }}
-        NEXT_PUBLIC_APP_ENV: production
-      
-    - name: Deploy Project Artifacts to Vercel
-      run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        NEXT_PUBLIC_WORKSPACE_NAME: UI-Workspace-Staging
+        NEXT_PUBLIC_WEATHER_API_URL: ${{ secrets.NEXT_PUBLIC_WEATHER_API_URL_STAGING }}
+        NEXT_PUBLIC_APP_ENV: staging
+        NEXT_PUBLIC_ENABLE_WEATHER_MODULE: true
 
-  # Deploy to Netlify (alternative)
-  deploy-netlify:
-    needs: test
+  # Deploy to production
+  deploy-production:
+    needs: [build-and-push]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_target == 'production')
+    
+    environment:
+      name: production
+      url: https://ui-workspace.tomskija.dev
     
     steps:
     - name: Checkout code
@@ -135,34 +199,28 @@ jobs:
         node-version: '18'
         cache: 'npm'
         
-    - name: Install dependencies
-      run: npm ci
+    - name: Install Vercel CLI
+      run: npm install --global vercel@latest
       
-    - name: Build project
-      run: npm run build
+    - name: Deploy to Vercel Production
+      run: |
+        vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
       env:
-        NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL_STAGING || 'https://staging-api.tomskija.dev' }}
-        NEXT_PUBLIC_APP_ENV: staging
-        
-    - name: Deploy to Netlify
-      uses: nwtgck/actions-netlify@v2.0
-      with:
-        publish-dir: './out'
-        production-branch: main
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        deploy-message: "Deploy from GitHub Actions"
-        enable-pull-request-comment: false
-        enable-commit-comment: true
-        overwrites-pull-request-comment: true
-      env:
-        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        NEXT_PUBLIC_WORKSPACE_NAME: UI-Workspace
+        NEXT_PUBLIC_WEATHER_API_URL: ${{ secrets.NEXT_PUBLIC_WEATHER_API_URL }}
+        NEXT_PUBLIC_FINANCE_API_URL: ${{ secrets.NEXT_PUBLIC_FINANCE_API_URL }}
+        NEXT_PUBLIC_APP_ENV: production
+        NEXT_PUBLIC_ENABLE_WEATHER_MODULE: true
+        NEXT_PUBLIC_ENABLE_FINANCE_MODULE: ${{ secrets.NEXT_PUBLIC_ENABLE_FINANCE_MODULE }}
+        NEXT_PUBLIC_ENABLE_MULTI_BACKEND: true
 
-  # Lighthouse performance audit
+  # Performance audit
   lighthouse:
-    needs: deploy-vercel
+    needs: deploy-staging
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/develop'
     
     steps:
     - name: Checkout code
@@ -175,20 +233,40 @@ jobs:
       uses: treosh/lighthouse-ci-action@v10
       with:
         urls: |
-          https://ui-workspace-tomskija.vercel.app
+          https://staging-ui-workspace.tomskija.dev
+          https://staging-ui-workspace.tomskija.dev/weather
         configPath: ./lighthouserc.js
         uploadArtifacts: true
         temporaryPublicStorage: true
 
-  # Update README with deployment status
-  update-readme:
-    needs: [deploy-vercel, build-and-push]
+  # Update workspace status
+  update-status:
+    needs: [deploy-production, deploy-staging]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: always()
     
     steps:
-    - name: Update deployment badges
+    - name: Update deployment status
       run: |
-        echo "✅ Deployment successful to:"
-        echo "- Vercel: https://ui-workspace-tomskija.vercel.app"
+        echo "🚀 UI Workspace Deployment Status:"
+        echo "- Repository: https://github.com/tomskija/UI-Workspace"
+        echo "- Production: https://ui-workspace.tomskija.dev"
+        echo "- Staging: https://staging-ui-workspace.tomskija.dev"
         echo "- Docker: ghcr.io/tomskija/ui-workspace:latest"
+        echo ""
+        echo "📡 Connected Backends:"
+        echo "- Weather: ${{ secrets.NEXT_PUBLIC_WEATHER_API_URL }}"
+        echo "- Finance: ${{ secrets.NEXT_PUBLIC_FINANCE_API_URL || 'Not configured' }}"
+        
+  # Notify on failures
+  notify-failure:
+    needs: [lint-and-type-check, test, build-and-push, deploy-production]
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+    - name: Notify failure
+      run: |
+        echo "❌ UI Workspace deployment failed"
+        echo "Check logs for details: https://github.com/tomskija/UI-Workspace/actions"
+        # Add Slack/Discord notification here if desired

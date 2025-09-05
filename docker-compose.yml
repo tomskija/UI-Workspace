@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  # UI Workspace Frontend
+  workspace-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_WEATHER_API_URL: ${NEXT_PUBLIC_WEATHER_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_APP_ENV: development
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_WORKSPACE_NAME=UI-Workspace
+      - NEXT_PUBLIC_WEATHER_API_URL=${NEXT_PUBLIC_WEATHER_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_ENABLE_WEATHER_MODULE=true
+      - NEXT_PUBLIC_APP_ENV=development
+      - NEXT_PUBLIC_ENABLE_MULTI_BACKEND=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Production build
+  workspace-ui-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_WEATHER_API_URL: ${NEXT_PUBLIC_WEATHER_API_URL:-https://weather-api.tomskija.dev}
+        NEXT_PUBLIC_FINANCE_API_URL: ${NEXT_PUBLIC_FINANCE_API_URL:-https://finance-api.tomskija.dev}
+        NEXT_PUBLIC_APP_ENV: production
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_WORKSPACE_NAME=UI-Workspace
+      - NEXT_PUBLIC_WEATHER_API_URL=${NEXT_PUBLIC_WEATHER_API_URL:-https://weather-api.tomskija.dev}
+      - NEXT_PUBLIC_FINANCE_API_URL=${NEXT_PUBLIC_FINANCE_API_URL:-https://finance-api.tomskija.dev}
+      - NEXT_PUBLIC_ENABLE_WEATHER_MODULE=true
+      - NEXT_PUBLIC_ENABLE_FINANCE_MODULE=${NEXT_PUBLIC_ENABLE_FINANCE_MODULE:-false}
+      - NEXT_PUBLIC_ENABLE_MULTI_BACKEND=true
+    restart: unless-stopped
+    profiles: ["production"]
+
+  # Development with hot reload
+  workspace-ui-dev:
+    image: node:18-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_WORKSPACE_NAME=UI-Workspace-Dev
+      - NEXT_PUBLIC_WEATHER_API_URL=${NEXT_PUBLIC_WEATHER_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_FINANCE_API_URL=${NEXT_PUBLIC_FINANCE_API_URL:-http://localhost:8001}
+      - NEXT_PUBLIC_ENABLE_WEATHER_MODULE=true
+      - NEXT_PUBLIC_ENABLE_FINANCE_MODULE=${NEXT_PUBLIC_ENABLE_FINANCE_MODULE:-false}
+      - NEXT_PUBLIC_ENABLE_MULTI_BACKEND=true
+      - NEXT_PUBLIC_DEBUG_MODE=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+    profiles: ["development"]
+
+  # Nginx reverse proxy (for production with multiple backends)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - workspace-ui-prod
+    restart: unless-stopped
+    profiles: ["production", "nginx"]
+
+  # Redis for shared caching across modules (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    profiles: ["cache", "full"]
+
+  # Backend health monitor (optional service)
+  health-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitor
+    environment:
+      - BACKENDS_TO_MONITOR=weather:${NEXT_PUBLIC_WEATHER_API_URL:-http://localhost:8000}
+      - CHECK_INTERVAL=30000
+    depends_on:
+      - workspace-ui
+    restart: unless-stopped
+    profiles: ["monitoring", "full"]
+
+volumes:
+  node_modules:
+  next_cache:
+  redis_data:
+
+networks:
+  default:
+    name: ui-workspace-network
+    driver: bridge
+
+# Example usage commands:
+# Development: docker-compose --profile development up workspace-ui-dev
+# Production: docker-compose --profile production up workspace-ui-prod  
+# With caching: docker-compose --profile cache up workspace-ui redis
+# Full stack: docker-compose --profile full up
